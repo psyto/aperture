@@ -1,0 +1,66 @@
+# Aperture (working name)
+
+A **selective-disclosure workflow layer** for confidential on-chain balances.
+
+The confidential-balance *primitive* is commoditizing fast (Solana Token-2022 Confidential
+Balances, Arcium CSPL, EVM ERC-7984). All three stop at a **crude global-auditor model**: one
+designated key that can decrypt everything, forever. Real funds and DAO treasuries need the layer
+above that: **who** may see, at **what granularity**, **when**, and the ability to **revoke** — plus
+a verifiable, non-repudiable record of what was disclosed to whom.
+
+Aperture is that layer. Differentiation is not cryptography — it is **disclosure semantics + an
+auditor-facing verifier + a fund-admin workflow**, sitting on top of any confidential substrate.
+
+## Positioning
+
+- **ICP:** crypto-native funds / prop desks whose secret is the *amount*, not the *counterparty*
+  (Token-2022 hides amounts, not the transaction graph). Channel: fund administrators.
+- **Trust model as a feature:** Token-2022 is the only *zero-external-trust* substrate (native,
+  on-chain ZK verification). Arcium (MPC committee) and ERC-7984 (FHE threshold committee) carry
+  external trust. A disclosure package can carry a `trust_model` attestation so an auditor knows
+  what assumption a claim rests on.
+
+## Architecture (target)
+
+```
+L1  Disclosure workflow layer (substrate-agnostic — the moat)
+      Policy / DisclosurePackage / Receipt Registry / Verifier
+L2  Substrate Adapter interface
+L3  Adapters:  [Token-2022] first   ·   [Arcium CSPL] [ERC-7984] later stubs
+```
+
+## Status — engineering feasibility: **GREEN**
+
+The first hard risk was: *can we generate + verify disclosure proofs over a **static**
+confidential balance, standalone (no transfer, no validator), using stock `solana-zk-sdk`?*
+
+`spike/` answers **yes**. Against real `solana-zk-sdk` 7.0.1, purely locally, it constructs and
+verifies every disclosure claim type the L1 layer needs:
+
+| Claim | Construction | Result |
+|-------|--------------|--------|
+| **Range** (`balance ≥ threshold`, value hidden) | commit `(balance − threshold)` under the balance opening → `build_batched_range_proof_u64_data` | ✅ |
+| **Exact** to an arbitrary third-party verifier (no global auditor key) | re-encrypt under verifier key → `ciphertext_ciphertext_equality` → verifier decrypts | ✅ |
+| **Commitment ↔ ciphertext binding** | `ciphertext_commitment_equality` | ✅ |
+| **Aggregate** (portfolio sum ≥ threshold) | ElGamal additive homomorphism, then range proof on the sum | ✅ |
+| Soundness: inflated exact claim | rejected at generation | ✅ |
+| Soundness: range with mismatched amount | fails verification | ✅ |
+
+Key finding: the `build_*_data` functions are **pure and take arbitrary inputs** — they are the
+standalone generation API. No need to drop below `solana-zk-sdk`; the earlier concern that
+generation was only wired for transfers is refuted.
+
+### Run
+
+```
+cd spike && cargo run
+# ==== 9 passed, 0 failed ====
+```
+
+## Open (not yet closed)
+
+- On-chain verification path (submit proofs to the ZK ElGamal Proof Program; SIMD-0153 mainnet
+  activation) for non-repudiation — spike verifies locally only.
+- `decrypt_u32` covers values up to ~2³²; larger balances need the lo/hi chunked decrypt
+  (a solved Token-2022 pattern).
+- Portfolio decision: Aperture as an Intentio sibling vs. a standalone brand — undecided.
