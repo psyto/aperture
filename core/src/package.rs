@@ -3,6 +3,13 @@
 //! auditor knows what assumption a claim rests on.
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+/// SHA-256 of arbitrary bytes into a 32-byte id (used to fold strings into fixed-size on-chain
+/// receipt fields — content-blind).
+pub fn hash32(bytes: &[u8]) -> [u8; 32] {
+    Sha256::digest(bytes).into()
+}
 
 /// Trust assumption a claim's proof rests on. This is the differentiator we can attest that the
 /// commoditized primitives cannot: Token-2022 is the only zero-external-trust substrate.
@@ -78,4 +85,21 @@ pub struct DisclosurePackage {
     pub receipt_commitment: Vec<u8>,
     /// Issuer signature over the package (stub in the skeleton).
     pub issuer_signature: Vec<u8>,
+}
+
+impl DisclosurePackage {
+    /// Derive the content-blind commitment that the Receipt Registry anchors on-chain. Binds the
+    /// identifying fields (never plaintext) so the on-chain receipt is tied to this exact
+    /// disclosure. The verifier recomputes this and checks it matches `receipt_commitment`.
+    pub fn derive_receipt_commitment(&self) -> [u8; 32] {
+        let mut h = Sha256::new();
+        h.update(self.package_id.as_bytes());
+        h.update(self.grant_id.as_bytes());
+        h.update(self.recipient.as_bytes());
+        h.update(format!("{:?}", self.claim).as_bytes());
+        for s in &self.subject {
+            h.update(&s.ciphertext_commitment);
+        }
+        h.finalize().into()
+    }
 }

@@ -45,6 +45,7 @@ dependencies = [
  "bytemuck",
  "serde",
  "serde_json",
+ "sha2",
  "solana-zk-elgamal-proof-interface",
  "solana-zk-sdk",
 ]

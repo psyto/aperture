@@ -30,7 +30,7 @@ mod tests {
         proof: crate::package::ProofEnvelope,
         subject: crate::package::SubjectAccount,
     ) -> DisclosurePackage {
-        DisclosurePackage {
+        let mut pkg = DisclosurePackage {
             package_id: "pkg-1".into(),
             grant_id: grant.id.clone(),
             substrate: SubstrateId::Token2022,
@@ -42,9 +42,11 @@ mod tests {
             subject: vec![subject],
             claim,
             proof,
-            receipt_commitment: vec![0xab; 32],
+            receipt_commitment: vec![],
             issuer_signature: vec![],
-        }
+        };
+        pkg.receipt_commitment = pkg.derive_receipt_commitment().to_vec();
+        pkg
     }
 
     /// End-to-end: authorize -> issue range package -> serde round-trip -> verify.
@@ -119,5 +121,23 @@ mod tests {
     #[test]
     fn adapter_reports_native_zero() {
         assert_eq!(Token2022Substrate.substrate_trust_model(), TrustModel::NativeZero);
+    }
+
+    /// The receipt commitment must bind the package contents.
+    #[test]
+    fn tampered_receipt_commitment_fails() {
+        let grant = Grant {
+            id: "g".into(),
+            recipient: Recipient { name: "LP".into(), verifier_key: vec![] },
+            granularity: Granularity::Range { min: 10, max: None },
+            trigger: Trigger::OnRequest,
+            validity: Validity { not_after: None, revocable: true },
+        };
+        let fund = ElGamalKeypair::new_rand();
+        let (claim, proof, subject) = issue_range_disclosure(&fund, 15_000_000, 10_000_000, "a");
+        let mut pkg = package_from(&grant, claim, proof, subject);
+        pkg.receipt_commitment[0] ^= 0xff; // corrupt the anchor commitment
+        let report = verify_package(&pkg, &Token2022Substrate, 1_500, "LP");
+        assert!(!report.receipt_ok, "corrupt receipt commitment must fail: {:?}", report);
     }
 }

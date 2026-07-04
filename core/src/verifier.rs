@@ -51,12 +51,15 @@ pub fn verify_package(
         notes.push(format!("proof invalid: {m}"));
     }
 
-    // 4. Receipt: the on-chain commitment is content-blind and needs no ZK program. Here we only
-    //    check the package carries a non-empty commitment; on-chain lookup / revocation status is a
-    //    Receipt Registry call (out of skeleton scope).
-    let receipt_ok = !pkg.receipt_commitment.is_empty();
-    if !receipt_ok {
+    // 4. Receipt: the commitment is content-blind and needs no ZK program. Check it is present and
+    //    matches the derivation (integrity binding to this exact disclosure). On-chain existence /
+    //    revocation status is a Receipt Registry lookup (see flow-tests for the anchored path).
+    let receipt_ok = !pkg.receipt_commitment.is_empty()
+        && pkg.receipt_commitment == pkg.derive_receipt_commitment();
+    if pkg.receipt_commitment.is_empty() {
         notes.push("missing receipt commitment".into());
+    } else if !receipt_ok {
+        notes.push("receipt commitment does not match package contents".into());
     }
 
     VerifyReport { structural_ok, proof_ok, receipt_ok, notes }

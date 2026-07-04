@@ -43,6 +43,12 @@ gate. Tested in `receipts-tests/` via **LiteSVM** (real BPF, no validator) → 4
 record, issuer-revoke, non-issuer rejected, double-record rejected. Build: `cd receipts &&
 cargo build-sbf`, then `cd receipts-tests && cargo test`.
 
+**End-to-end in `flow-tests/`** (1 test): core issue → off-chain verify → anchor the content-blind
+commitment on-chain (Receipt Registry via LiteSVM) → the receipt binds the package → **revoke** →
+on-chain `revoked=1` while the already-delivered package still verifies cryptographically —
+demonstrating **revocation governs future reliance, not clawback**. The verifier also recomputes and
+checks `receipt_commitment` against the package contents (`derive_receipt_commitment`).
+
 ## Status (scoped — not a single color)
 
 | Dimension | Status |
