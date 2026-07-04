@@ -29,6 +29,12 @@ L2  Substrate Adapter interface
 L3  Adapters:  [Token-2022] first   ·   [Arcium CSPL] [ERC-7984] later stubs
 ```
 
+**Implemented in `core/`** (skeleton, `cargo test` → 9 passing):
+`policy` (grants + revocation semantics), `package` (serde disclosure package + `trust_model`),
+`substrate::ConfidentialSubstrate` (L2 trait), `token2022::Token2022Substrate` (L3 adapter reusing
+the spike primitives), and `verify_package()` (uniform verifier). End-to-end test: authorize →
+issue range/exact package → serde round-trip → verify.
+
 ## Status (scoped — not a single color)
 
 | Dimension | Status |
@@ -72,6 +78,9 @@ cd spike && cargo run
   authorization to obtain future disclosures**, not data already handed over. Design principle:
   prefer **range / predicate** disclosures and **just-in-time** proofs; treat any exact disclosure
   as permanent to that recipient (like a signed bank statement). Escrow does not fix this.
+  *Now encoded in `core::policy`*: `Granularity::reversibility()` marks `Exact` as `Irreversible`;
+  `Grant::authorize_new_disclosure()` gates only future disclosures; `revocation_note()` surfaces
+  the clawback truth instead of hiding it.
 - **On-chain path is availability-gated, not compute-gated.** Proof *verification* runs in a
   **native** program, not BPF — so circuit size / compute budget is a non-issue by design, and
   proof-vs-tx-size is handled by context state accounts. The real dependency is binary: is the
