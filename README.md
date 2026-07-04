@@ -26,14 +26,18 @@ auditor-facing verifier + a fund-admin workflow**, sitting on top of any confide
 L1  Disclosure workflow layer (substrate-agnostic — the moat)
       Policy / DisclosurePackage / Receipt Registry / Verifier
 L2  Substrate Adapter interface
-L3  Adapters:  [Token-2022] first   ·   [Arcium CSPL] [ERC-7984] later stubs
+L3  Adapters:  [Token-2022] real   ·   [Arcium CSPL] stub   ·   [ERC-7984] later
 ```
 
-**Implemented in `core/`** (skeleton, `cargo test` → 9 passing):
-`policy` (grants + revocation semantics), `package` (serde disclosure package + `trust_model`),
-`substrate::ConfidentialSubstrate` (L2 trait), `token2022::Token2022Substrate` (L3 adapter reusing
-the spike primitives), and `verify_package()` (uniform verifier). End-to-end test: authorize →
-issue range/exact package → serde round-trip → verify.
+**Implemented in `core/`** (skeleton, `cargo test` → 12 passing):
+`policy` (grants + revocation semantics), `package` (serde disclosure package + `trust_model` +
+`derive_receipt_commitment`), `substrate::ConfidentialSubstrate` (L2 trait),
+`token2022::Token2022Substrate` (L3 adapter reusing the spike primitives), `cspl::CsplSubstrate`
+(L3 **stub** — real MPC verify not wired), and `verify_package()` (uniform verifier). Tests cover:
+authorize → issue range/exact package → serde round-trip → verify; and **substrate-agnosticism** —
+the same L1 flow runs on the CSPL stub and the verifier surfaces `MpcHonestMajority` vs Token-2022's
+`NativeZero`, proving competitors become *substrates*, not competitors, and the `trust_model`
+attestation works across them.
 
 **Implemented in `receipts/`** — the Receipt Registry, a **content-blind native Solana program**
 (`solana-program`, no Anchor). `RecordDisclosure` anchors only hashes (issuer, recipient,

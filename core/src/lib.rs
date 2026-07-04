@@ -8,6 +8,7 @@
 //! L3  token2022::Token2022Substrate  (+ Arcium CSPL / ERC-7984 later)
 //! ```
 
+pub mod cspl;
 pub mod package;
 pub mod policy;
 pub mod substrate;
@@ -139,5 +140,46 @@ mod tests {
         pkg.receipt_commitment[0] ^= 0xff; // corrupt the anchor commitment
         let report = verify_package(&pkg, &Token2022Substrate, 1_500, "LP");
         assert!(!report.receipt_ok, "corrupt receipt commitment must fail: {:?}", report);
+    }
+
+    /// The SAME L1 flow runs on a different substrate (Arcium CSPL stub) — proving substrate-agnostic
+    /// design. Only the trust model differs, and the verifier surfaces it.
+    #[test]
+    fn cspl_package_verifies_and_surfaces_mpc_trust() {
+        use crate::cspl::{issue_range_disclosure_stub, CsplSubstrate};
+        let (claim, proof, subject) = issue_range_disclosure_stub(10_000_000);
+        let mut pkg = DisclosurePackage {
+            package_id: "pkg-cspl".into(),
+            grant_id: "grant-cspl".into(),
+            substrate: SubstrateId::ArciumCspl,
+            issuer: "fund-A".into(),
+            recipient: "LP".into(),
+            issued_at: 1_000,
+            expiry: Some(2_000),
+            anchor: ChainAnchor { cluster: "solana".into(), slot: 1 },
+            subject: vec![subject],
+            claim,
+            proof,
+            receipt_commitment: vec![],
+            issuer_signature: vec![],
+        };
+        pkg.receipt_commitment = pkg.derive_receipt_commitment().to_vec();
+
+        let report = verify_package(&pkg, &CsplSubstrate, 1_500, "LP");
+        assert!(report.passed(), "CSPL package should verify via the same L1 flow: {:?}", report);
+        assert!(report.notes.iter().any(|n| n.contains("MpcHonestMajority")));
+    }
+
+    /// The trust-model differentiator holds ACROSS substrates: Token-2022 = NativeZero,
+    /// CSPL = MpcHonestMajority. The auditor learns what each claim rests on.
+    #[test]
+    fn trust_model_differs_across_substrates() {
+        use crate::cspl::CsplSubstrate;
+        assert_eq!(Token2022Substrate.substrate_trust_model(), TrustModel::NativeZero);
+        assert_eq!(CsplSubstrate.substrate_trust_model(), TrustModel::MpcHonestMajority);
+        assert_ne!(
+            Token2022Substrate.substrate_trust_model(),
+            CsplSubstrate.substrate_trust_model()
+        );
     }
 }
