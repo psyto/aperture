@@ -29,9 +29,16 @@ L2  Substrate Adapter interface
 L3  Adapters:  [Token-2022] first   ·   [Arcium CSPL] [ERC-7984] later stubs
 ```
 
-## Status — engineering feasibility: **GREEN**
+## Status (scoped — not a single color)
 
-The first hard risk was: *can we generate + verify disclosure proofs over a **static**
+| Dimension | Status |
+|-----------|--------|
+| Disclosure-claim primitives, **off-chain** generate + verify | **GREEN** — proven in `spike/` |
+| **On-chain** proof verification / non-repudiation | **RED today** — the native ZK ElGamal Proof Program is *disabled on mainnet-beta* after the June-2025 forged-proof incident (Fiat-Shamir transcript flaw); patched (Agave ≥v2.1.21) but reactivation not yet confirmed live. Degrades gracefully (see below). |
+| Revocation semantics | **Open spec gap** — exact disclosure is irreversible once delivered (see Design gaps) |
+| Product / market / UX | **Early** — never claimed otherwise |
+
+The **narrow** first risk was: *can we generate + verify disclosure proofs over a **static**
 confidential balance, standalone (no transfer, no validator), using stock `solana-zk-sdk`?*
 
 `spike/` answers **yes**. Against real `solana-zk-sdk` 7.0.1, purely locally, it constructs and
@@ -57,10 +64,25 @@ cd spike && cargo run
 # ==== 9 passed, 0 failed ====
 ```
 
+## Design gaps (open)
+
+- **Revocation is not clawback.** Exact disclosure re-encrypts the value under the recipient's
+  key; once delivered it *cannot* be un-decrypted. What is revocable is the **standing
+  authorization to obtain future disclosures**, not data already handed over. Design principle:
+  prefer **range / predicate** disclosures and **just-in-time** proofs; treat any exact disclosure
+  as permanent to that recipient (like a signed bank statement). Escrow does not fix this.
+- **On-chain path is availability-gated, not compute-gated.** Proof *verification* runs in a
+  **native** program, not BPF — so circuit size / compute budget is a non-issue by design, and
+  proof-vs-tx-size is handled by context state accounts. The real dependency is binary: is the
+  native verifier enabled on mainnet. Until it is, ship **off-chain verification** (works today)
+  plus **commitment anchoring** for the audit trail — the Receipt Registry stores only hashes and
+  needs no ZK program, so non-repudiation of *what was disclosed* does not depend on reactivation.
+
 ## Open (not yet closed)
 
-- On-chain verification path (submit proofs to the ZK ElGamal Proof Program; SIMD-0153 mainnet
-  activation) for non-repudiation — spike verifies locally only.
+- Confirm ZK ElGamal Proof Program mainnet reactivation status; wire the on-chain verify path once live.
+- Quantify client-side proof-generation cost (WASM-in-browser vs. desktop) — mild for a
+  periodic/on-request disclosure product (snapshot read, not a hot transfer path), but unmeasured.
 - `decrypt_u32` covers values up to ~2³²; larger balances need the lo/hi chunked decrypt
   (a solved Token-2022 pattern).
 - Portfolio decision: Aperture as an Intentio sibling vs. a standalone brand — undecided.
