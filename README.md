@@ -20,9 +20,12 @@ auditor-facing verifier + a fund-admin workflow**, sitting on top of any confide
   on-chain ZK verification). Arcium (MPC committee) and ERC-7984 (FHE threshold committee) carry
   external trust. Every disclosure package carries a `trust_model` attestation so an auditor knows
   what assumption a claim rests on — a distinction the substrates themselves don't surface.
-- **Dominant risk is market existence, not the tech.** The bet that decides Aperture is whether
-  funds actually plan to hold Token-2022 confidential balances — a bigger unknown than the on-chain
-  ZK reactivation below. That is the first question in the design-partner brief.
+- **Dominant risk is market existence, not the tech — and desk research says the market is
+  pre-formation.** The substrate is non-transactable on mainnet today (ZK program disabled),
+  confidential-balance-aware custody doesn't exist yet, and the visible institutional SOL holders are
+  disclosure-mandated (the anti-use-case). See [`MARKET_SIGNAL.md`](./MARKET_SIGNAL.md). Recommended
+  posture: **hold at option value; watch two triggers** (ZK reactivation; confidential-balance
+  support in Fireblocks/Squads) rather than run heavy GTM now.
 
 ## Architecture
 
@@ -110,8 +113,11 @@ was only wired for transfers is refuted.
   *don't* build a standalone brand yet (scope-spread). Middle path: a **Fabrknt-umbrella standalone
   product** named `aperture`, unified at the **buyer layer** (crypto-native funds/treasuries), with
   brand investment deferred until one design partner validates.
-- **GTM validation (the critical path):** run the design-partner conversation — foremost, *do funds
-  plan to hold confidential balances?*
+- **GTM (the critical path):** desk research finds the market pre-formation
+  ([`MARKET_SIGNAL.md`](./MARKET_SIGNAL.md)) — so **watch two unlock triggers** (ZK reactivation;
+  confidential-balance custody support) and keep the built stack warm, rather than run a heavy
+  design-partner campaign into a market that can't yet transact. Leading indicator: Arcium CSPL
+  institutional traction (Aperture can ride it via the `cspl` adapter).
 - ZK ElGamal Proof Program mainnet reactivation — sole on-chain blocker (ops, not code); plumbing done.
 - Quantify client-side proof-generation cost (WASM-in-browser vs desktop) — mild for a
   periodic/on-request product (snapshot read, not a hot transfer path), but unmeasured.
