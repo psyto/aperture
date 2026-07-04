@@ -1,0 +1,17 @@
+[package]
+name = "aperture-receipts"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Receipt Registry — a content-blind, native Solana program that anchors disclosure
+# commitments on-chain for non-repudiation. Stores only hashes; needs NO ZK program,
+# so the audit trail survives while ZK ElGamal Proof verification is feature-gated off.
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+solana-program = "2.3"
+
+[workspace]

@@ -1,0 +1,21 @@
+[package]
+name = "aperture-receipts-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# LiteSVM harness (validator-free, in-process) for the Receipt Registry program.
+# Mirrors the Custos test stack: litesvm 0.13 + solana 3 split crates, loading the
+# prebuilt .so from ../receipts (run `cargo build-sbf` there first).
+
+[dev-dependencies]
+litesvm = "0.13"
+solana-keypair = "3.1"
+solana-signer = "3"
+solana-pubkey = "3"
+solana-instruction = "3"
+solana-transaction = "3"
+solana-account = "3"
+solana-sdk-ids = "3"
+
+[workspace]

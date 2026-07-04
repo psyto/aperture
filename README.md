@@ -35,6 +35,14 @@ L3  Adapters:  [Token-2022] first   ·   [Arcium CSPL] [ERC-7984] later stubs
 the spike primitives), and `verify_package()` (uniform verifier). End-to-end test: authorize →
 issue range/exact package → serde round-trip → verify.
 
+**Implemented in `receipts/`** — the Receipt Registry, a **content-blind native Solana program**
+(`solana-program`, no Anchor). `RecordDisclosure` anchors only hashes (issuer, recipient,
+commitment, grant_id, slot); `RevokeDisclosure` is issuer-signed and governs *future* reliance, not
+clawback. **Needs no ZK program**, so the non-repudiation trail works today despite the mainnet ZK
+gate. Tested in `receipts-tests/` via **LiteSVM** (real BPF, no validator) → 4 passing: content-blind
+record, issuer-revoke, non-issuer rejected, double-record rejected. Build: `cd receipts &&
+cargo build-sbf`, then `cd receipts-tests && cargo test`.
+
 ## Status (scoped — not a single color)
 
 | Dimension | Status |
@@ -85,8 +93,9 @@ cd spike && cargo run
   **native** program, not BPF — so circuit size / compute budget is a non-issue by design, and
   proof-vs-tx-size is handled by context state accounts. The real dependency is binary: is the
   native verifier enabled on mainnet. Until it is, ship **off-chain verification** (works today)
-  plus **commitment anchoring** for the audit trail — the Receipt Registry stores only hashes and
-  needs no ZK program, so non-repudiation of *what was disclosed* does not depend on reactivation.
+  plus **commitment anchoring** for the audit trail — the Receipt Registry (`receipts/`, now
+  implemented + LiteSVM-tested) stores only hashes and needs no ZK program, so non-repudiation of
+  *what was disclosed* does not depend on reactivation.
 
 ## Open (not yet closed)
 
