@@ -34,7 +34,7 @@ L3  Adapters:  [Token-2022] first   ·   [Arcium CSPL] [ERC-7984] later stubs
 | Dimension | Status |
 |-----------|--------|
 | Disclosure-claim primitives, **off-chain** generate + verify | **GREEN** — proven in `spike/` |
-| **On-chain** proof verification / non-repudiation | **RED today** — the native ZK ElGamal Proof Program is *disabled on mainnet-beta* after the June-2025 forged-proof incident (Fiat-Shamir transcript flaw); patched (Agave ≥v2.1.21) but reactivation not yet confirmed live. Degrades gracefully (see below). |
+| **On-chain** proof verification / non-repudiation | **Plumbing GREEN, availability RED.** `spike/` builds the real `VerifyBatchedRangeProofU64` instruction and replicates the native program's processor path (decode → `verify_proof`) offline — the program runs this exact code. Residual is purely ops: the program is feature-gated *off* on mainnet-beta since the June-2025 forged-proof incident (Fiat-Shamir transcript flaw; patched Agave ≥v2.1.21, reactivation not yet confirmed live). Degrades gracefully (see below). |
 | Revocation semantics | **Open spec gap** — exact disclosure is irreversible once delivered (see Design gaps) |
 | Product / market / UX | **Early** — never claimed otherwise |
 
@@ -50,6 +50,7 @@ verifies every disclosure claim type the L1 layer needs:
 | **Exact** to an arbitrary third-party verifier (no global auditor key) | re-encrypt under verifier key → `ciphertext_ciphertext_equality` → verifier decrypts | ✅ |
 | **Commitment ↔ ciphertext binding** | `ciphertext_commitment_equality` | ✅ |
 | **Aggregate** (portfolio sum ≥ threshold) | ElGamal additive homomorphism, then range proof on the sum | ✅ |
+| **On-chain plumbing** | build real `ProofInstruction::VerifyBatchedRangeProofU64` (proof-in-instruction-data) + replicate native processor: decode → `verify_proof` | ✅ |
 | Soundness: inflated exact claim | rejected at generation | ✅ |
 | Soundness: range with mismatched amount | fails verification | ✅ |
 
@@ -61,7 +62,7 @@ generation was only wired for transfers is refuted.
 
 ```
 cd spike && cargo run
-# ==== 9 passed, 0 failed ====
+# ==== 13 passed, 0 failed ====
 ```
 
 ## Design gaps (open)
@@ -80,7 +81,8 @@ cd spike && cargo run
 
 ## Open (not yet closed)
 
-- Confirm ZK ElGamal Proof Program mainnet reactivation status; wire the on-chain verify path once live.
+- ZK ElGamal Proof Program mainnet reactivation is the sole on-chain blocker (ops/timeline, not
+  code). Instruction plumbing is done; submitting to a live cluster only needs the program enabled.
 - Quantify client-side proof-generation cost (WASM-in-browser vs. desktop) — mild for a
   periodic/on-request disclosure product (snapshot read, not a hot transfer path), but unmeasured.
 - `decrypt_u32` covers values up to ~2³²; larger balances need the lo/hi chunked decrypt

@@ -42,6 +42,7 @@ dependencies = [
 name = "aperture-spike"
 version = "0.1.0"
 dependencies = [
+ "solana-zk-elgamal-proof-interface",
  "solana-zk-sdk",
 ]
 

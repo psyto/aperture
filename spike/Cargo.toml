@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 solana-zk-sdk = "7"
+solana-zk-elgamal-proof-interface = "0.1.3"

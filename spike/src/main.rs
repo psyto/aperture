@@ -16,6 +16,11 @@ use solana_zk_sdk::{
         VerifyZkProof,
     },
 };
+use solana_zk_elgamal_proof_interface::{
+    id as zk_proof_program_id,
+    instruction::ProofInstruction,
+    proof_data::batched_range_proof::{BatchedRangeProofContext, BatchedRangeProofU64Data},
+};
 
 fn main() {
     let mut pass = 0u32;
@@ -120,6 +125,40 @@ fn main() {
     )
     .expect("aggregate range proof generation");
     check("aggregate range proof verifies (sum >= 20M)", sum_range.verify_proof().is_ok());
+
+    // =====================================================================
+    // On-chain plumbing — build the ACTUAL ZK ElGamal Proof Program instruction
+    // from the range proof, then replicate the native program's processor path
+    // offline: read discriminator -> decode proof_data -> verify_proof().
+    // The program runs this exact verify logic (same solana-zk-sdk code); the
+    // only residual is ops-level: the program is feature-gated OFF on mainnet
+    // since the June-2025 incident, pending reactivation.
+    // =====================================================================
+    println!("On-chain plumbing — real VerifyBatchedRangeProofU64 instruction:");
+    let ix = ProofInstruction::VerifyBatchedRangeProofU64
+        .encode_verify_proof::<BatchedRangeProofU64Data, BatchedRangeProofContext>(None, &range_proof);
+    check(
+        "instruction targets the ZK ElGamal Proof program id",
+        ix.program_id == zk_proof_program_id(),
+    );
+    check(
+        "proof-in-instruction-data mode (no context-state accounts)",
+        ix.accounts.is_empty(),
+    );
+    check(
+        "discriminator decodes to VerifyBatchedRangeProofU64",
+        matches!(
+            ProofInstruction::instruction_type(&ix.data),
+            Some(ProofInstruction::VerifyBatchedRangeProofU64)
+        ),
+    );
+    // Replicate the native processor: decode the proof from instruction data and verify it.
+    let decoded =
+        ProofInstruction::proof_data::<BatchedRangeProofU64Data, BatchedRangeProofContext>(&ix.data);
+    check(
+        "program processor path: decode from ix.data then verify_proof() passes",
+        decoded.map(|p| p.verify_proof().is_ok()) == Some(true),
+    );
 
     // =====================================================================
     // Soundness negatives — a lie must not produce a passing proof.
