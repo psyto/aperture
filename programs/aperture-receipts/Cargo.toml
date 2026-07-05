@@ -2,6 +2,7 @@
 name = "aperture-receipts"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
 publish = false
 
 # Receipt Registry — a content-blind, native Solana program that anchors disclosure

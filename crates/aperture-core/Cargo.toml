@@ -2,9 +2,12 @@
 name = "aperture-core"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
+description = "Substrate-agnostic selective-disclosure engine for confidential on-chain balances"
+repository = "https://github.com/psyto/aperture"
 
 # L1 disclosure-workflow layer (substrate-agnostic) + L2 adapter trait
-# + L3 Token-2022 adapter. Built on the primitives proven in ../spike.
+# + L3 Token-2022 / CSPL adapters. Consumed as an external dependency by downstream products.
 
 [dependencies]
 solana-zk-sdk = "7"

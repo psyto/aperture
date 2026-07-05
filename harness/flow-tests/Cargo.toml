@@ -5,10 +5,10 @@ edition = "2021"
 publish = false
 
 # End-to-end: core (L1 issue + verify) wired to the on-chain Receipt Registry via LiteSVM.
-# Prereq: `cd ../receipts && cargo build-sbf`.
+# Prereq: `cd ../../programs/aperture-receipts && cargo build-sbf`.
 
 [dev-dependencies]
-aperture-core = { path = "../core" }
+aperture-core = { path = "../../crates/aperture-core" }
 solana-zk-sdk = "7"
 litesvm = "0.13"
 solana-keypair = "3.1"

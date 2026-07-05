@@ -8,11 +8,12 @@
 //! L3  token2022::Token2022Substrate  (+ Arcium CSPL / ERC-7984 later)
 //! ```
 
-pub mod cspl;
+mod adapters;
+pub use adapters::{cspl, token2022};
+
 pub mod package;
 pub mod policy;
 pub mod substrate;
-pub mod token2022;
 pub mod verifier;
 
 #[cfg(test)]

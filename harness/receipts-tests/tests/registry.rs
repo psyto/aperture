@@ -11,8 +11,8 @@ use std::path::PathBuf;
 
 fn program_so() -> Vec<u8> {
     let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../receipts/target/deploy/aperture_receipts.so");
-    std::fs::read(&p).unwrap_or_else(|e| panic!("read {p:?}: {e} — run `cargo build-sbf` in ../receipts"))
+        .join("../../programs/aperture-receipts/target/deploy/aperture_receipts.so");
+    std::fs::read(&p).unwrap_or_else(|e| panic!("read {p:?}: {e} — run `cargo build-sbf` in programs/aperture-receipts"))
 }
 
 const SYSTEM_PROGRAM: Pubkey = solana_sdk_ids::system_program::ID;

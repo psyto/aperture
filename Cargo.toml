@@ -1,0 +1,8 @@
+# Aperture — the substrate-agnostic disclosure engine (Hiro's IP, Apache-2.0).
+# Only the publishable library lives in the workspace. The on-chain program
+# (programs/) and dev harnesses (harness/) are excluded standalone crates —
+# they pull conflicting solana crate versions and are built on their own.
+[workspace]
+resolver = "2"
+members = ["crates/aperture-core"]
+exclude = ["programs", "harness"]
