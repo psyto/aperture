@@ -1,6 +1,7 @@
 //! L3 — the Token-2022 adapter. Wraps the primitives proven in ../spike:
 //! - Range / Aggregate  -> batched u64 range proof
 //! - Exact              -> ciphertext-ciphertext equality (re-encrypt under recipient key)
+//!
 //! Trust model: NativeZero (on-chain ZK verification, no external committee).
 
 use bytemuck::bytes_of;

@@ -34,10 +34,11 @@ pub struct SplitCiphertext {
 }
 
 /// How a confidential amount is carried: a single ciphertext (amount < 2^32) or a lo/hi split.
+/// Both variants are boxed so the enum stays pointer-sized when stored in bulk (e.g. many txns).
 #[derive(Clone)]
 pub enum ConfidentialAmount {
-    Small(ElGamalCiphertext),
-    Split(SplitCiphertext),
+    Small(Box<ElGamalCiphertext>),
+    Split(Box<SplitCiphertext>),
 }
 
 /// A confidential transaction as the auditor sees it: the amount is encrypted under the auditor's
@@ -81,9 +82,9 @@ pub fn encrypt_split(pubkey: &ElGamalPubkey, amount: u64) -> SplitCiphertext {
 /// Encrypt an amount, choosing `Small` for values < 2^32 and `Split` for larger values.
 pub fn encrypt_amount(pubkey: &ElGamalPubkey, amount: u64) -> ConfidentialAmount {
     if amount < HALF_BOUND {
-        ConfidentialAmount::Small(pubkey.encrypt(amount))
+        ConfidentialAmount::Small(Box::new(pubkey.encrypt(amount)))
     } else {
-        ConfidentialAmount::Split(encrypt_split(pubkey, amount))
+        ConfidentialAmount::Split(Box::new(encrypt_split(pubkey, amount)))
     }
 }
 
@@ -258,7 +259,7 @@ mod tests {
         let auditor = ElGamalKeypair::new_rand();
         let big: u64 = 5_000_000_000_000;
         // Forcing the large value into one ciphertext is not decryptable (discrete log > 2^32).
-        let single = ConfidentialAmount::Small(auditor.pubkey().encrypt(big));
+        let single = ConfidentialAmount::Small(Box::new(auditor.pubkey().encrypt(big)));
         assert_eq!(decrypt_amount(&auditor, &single), None, "motivates the split");
     }
 
