@@ -14,7 +14,7 @@ on. Differentiation is disclosure *semantics*, not cryptography.
 
 ```
 L1  Disclosure workflow (substrate-agnostic — the engine)
-      policy · package · verifier · receipt registry
+      policy · package · verifier · audit · receipt registry
 L2  Substrate Adapter interface  (ConfidentialSubstrate)
 L3  Adapters:  [Token-2022] real   ·   [Arcium CSPL] stub   ·   [ERC-7984] later
 ```
@@ -27,7 +27,7 @@ trait, so a competing primitive becomes a swappable *substrate*, not a competito
 
 | Path | What | Tests |
 |------|------|-------|
-| `crates/aperture-core/` | The engine (published lib): `policy` (revocation semantics), `package` (serde + `trust_model` + `derive_receipt_commitment`), `substrate` (L2 trait), `verifier`, `adapters/{token2022,cspl}` | 12 |
+| `crates/aperture-core/` | The engine (published lib): `policy` (revocation semantics), `package` (serde + `trust_model` + `derive_receipt_commitment`), `substrate` (L2 trait), `verifier`, `audit` (auditor decrypts confidential txns → audit trail + balanced double-entry journal), `adapters/{token2022,cspl}` | 14 |
 | `programs/aperture-receipts/` | Receipt Registry — content-blind **native Solana program** (no Anchor); anchors commitments, needs no ZK program | — |
 | `harness/spike/` | Feasibility proof vs real `solana-zk-sdk` 7.0.1 (standalone, no validator) + on-chain instruction plumbing replicated offline | 13 |
 | `harness/receipts-tests/` | LiteSVM harness (real BPF, no validator) for the program | 4 |

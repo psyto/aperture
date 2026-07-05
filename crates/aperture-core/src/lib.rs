@@ -11,6 +11,7 @@
 mod adapters;
 pub use adapters::{cspl, token2022};
 
+pub mod audit;
 pub mod package;
 pub mod policy;
 pub mod substrate;
