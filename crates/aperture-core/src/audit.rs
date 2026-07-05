@@ -9,6 +9,7 @@
 //! full `u64` are therefore carried as a **lo/hi split** (low 32 bits + high 32 bits), each half
 //! within decryptable range — the standard Token-2022 pattern. See [`ConfidentialAmount`].
 
+use serde::Serialize;
 use solana_zk_sdk::encryption::elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey};
 
 /// Bit shift for the high half of a split amount: low 32 bits + (high 32 bits << 32).
@@ -16,7 +17,8 @@ pub const SPLIT_SHIFT: u32 = 32;
 
 const HALF_BOUND: u64 = 1u64 << SPLIT_SHIFT; // 2^32
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Direction {
     Inflow,
     Outflow,
@@ -50,7 +52,7 @@ pub struct ConfidentialTxn {
 }
 
 /// A decrypted audit record.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct AuditRecord {
     pub id: String,
     pub counterparty: String,
@@ -60,7 +62,7 @@ pub struct AuditRecord {
 }
 
 /// A double-entry journal line (debit == credit == amount).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct JournalEntry {
     pub txn_id: String,
     pub debit_account: String,
@@ -149,6 +151,50 @@ pub fn totals(journal: &[JournalEntry]) -> (u64, u64) {
     (debits, credits)
 }
 
+/// Quote/escape one CSV field per RFC 4180 (only when it contains a comma, quote, or newline).
+fn csv_field(s: &str) -> String {
+    if s.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
+}
+
+/// Render the audit trail as CSV — the artifact an auditor actually consumes.
+pub fn audit_trail_csv(records: &[AuditRecord]) -> String {
+    let mut out = String::from("id,counterparty,slot,direction,amount\n");
+    for r in records {
+        let dir = match r.direction {
+            Direction::Inflow => "inflow",
+            Direction::Outflow => "outflow",
+        };
+        out.push_str(&format!(
+            "{},{},{},{},{}\n",
+            csv_field(&r.id),
+            csv_field(&r.counterparty),
+            r.slot,
+            dir,
+            r.amount
+        ));
+    }
+    out
+}
+
+/// Render the double-entry journal as CSV.
+pub fn journal_csv(entries: &[JournalEntry]) -> String {
+    let mut out = String::from("txn_id,debit_account,credit_account,amount\n");
+    for e in entries {
+        out.push_str(&format!(
+            "{},{},{},{}\n",
+            csv_field(&e.txn_id),
+            csv_field(&e.debit_account),
+            csv_field(&e.credit_account),
+            e.amount
+        ));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +269,38 @@ mod tests {
             let amount = encrypt_amount(auditor.pubkey(), v);
             assert_eq!(decrypt_amount(&auditor, &amount), Some(v), "round-trip {v}");
         }
+    }
+
+    #[test]
+    fn exports_csv_with_rfc4180_escaping() {
+        let auditor = ElGamalKeypair::new_rand();
+        let txns = vec![
+            txn("t1", "LP, Ltd.", 100, Direction::Inflow, 250, &auditor), // comma in name
+            txn("t2", "Vendor", 101, Direction::Outflow, 120, &auditor),
+        ];
+        let trail = build_audit_trail(&auditor, &txns).unwrap();
+
+        let csv = audit_trail_csv(&trail);
+        assert!(csv.starts_with("id,counterparty,slot,direction,amount\n"));
+        assert!(csv.contains("t1,\"LP, Ltd.\",100,inflow,250\n"), "comma field quoted: {csv}");
+
+        let journal = build_journal(&trail);
+        let jcsv = journal_csv(&journal);
+        assert!(jcsv.starts_with("txn_id,debit_account,credit_account,amount\n"));
+        assert!(jcsv.contains("t1,Cash,\"LP, Ltd.\",250\n"), "inflow debits Cash: {jcsv}");
+    }
+
+    #[test]
+    fn records_serialize_to_json() {
+        let r = AuditRecord {
+            id: "t1".into(),
+            counterparty: "LP".into(),
+            slot: 5,
+            direction: Direction::Outflow,
+            amount: 999,
+        };
+        let j = serde_json::to_string(&r).unwrap();
+        assert!(j.contains("\"amount\":999"));
+        assert!(j.contains("\"direction\":\"outflow\""), "rename_all lowercase: {j}");
     }
 }
