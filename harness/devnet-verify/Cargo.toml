@@ -1,0 +1,19 @@
+[package]
+name = "devnet-verify"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Submits an aperture range proof to the (reactivated) ZK ElGamal Proof Program via
+# devnet simulateTransaction — proving the live program accepts our proof on-chain.
+
+[dependencies]
+solana-zk-sdk = "7"
+solana-zk-elgamal-proof-interface = "0.1.3"
+solana-transaction = { version = "3", features = ["bincode", "serde"] }
+solana-message = { version = "3", features = ["serde"] }
+solana-address = "2"
+bincode = "1"
+base64 = "0.22"
+
+[workspace]

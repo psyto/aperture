@@ -1,2 +1,6 @@
 /target
 **/target
+
+# devnet throwaway keys
+**/.devnet-payer.json
+**/*-keypair.json
