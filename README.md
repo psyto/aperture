@@ -27,7 +27,7 @@ trait, so a competing primitive becomes a swappable *substrate*, not a competito
 
 | Path | What | Tests |
 |------|------|-------|
-| `crates/aperture-core/` | The engine (published lib): `policy` (revocation semantics), `package` (serde + `trust_model` + `derive_receipt_commitment`), `substrate` (L2 trait), `verifier`, `audit` (auditor decrypts confidential txns → audit trail + balanced double-entry journal; lo/hi split for full-`u64` amounts beyond the ~2³² single-ciphertext range; CSV / JSON export of trail + journal), `adapters/{token2022,cspl}` | 19 |
+| `crates/aperture-core/` | The engine (published lib): `policy` (revocation semantics), `package` (serde + `trust_model` + `derive_receipt_commitment`), `substrate` (L2 trait), `verifier`, `audit` (auditor decrypts confidential txns → audit trail + balanced double-entry journal; lo/hi split for full-`u64` amounts; **real Token-2022 confidential-transfer auditor format** — grouped ElGamal under [source,dest,auditor], 16/32 split; CSV / JSON export), `adapters/{token2022,cspl}` | 20 |
 | `programs/aperture-receipts/` | Receipt Registry — content-blind **native Solana program** (no Anchor); anchors commitments, needs no ZK program | — |
 | `harness/spike/` | Feasibility proof vs real `solana-zk-sdk` 7.0.1 (standalone, no validator) + on-chain instruction plumbing replicated offline | 13 |
 | `harness/receipts-tests/` | LiteSVM harness (real BPF, no validator) for the program | 4 |

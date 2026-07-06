@@ -11,6 +11,7 @@
 
 use serde::Serialize;
 use solana_zk_sdk::encryption::elgamal::{ElGamalCiphertext, ElGamalKeypair, ElGamalPubkey};
+use solana_zk_sdk::encryption::grouped_elgamal::{GroupedElGamal, GroupedElGamalCiphertext};
 
 /// Bit shift for the high half of a split amount: low 32 bits + (high 32 bits << 32).
 pub const SPLIT_SHIFT: u32 = 32;
@@ -33,12 +34,62 @@ pub struct SplitCiphertext {
     pub hi: ElGamalCiphertext,
 }
 
-/// How a confidential amount is carried: a single ciphertext (amount < 2^32) or a lo/hi split.
-/// Both variants are boxed so the enum stays pointer-sized when stored in bulk (e.g. many txns).
+/// Token-2022 confidential-transfer amount split: **low 16 bits + high 32 bits** (48-bit max
+/// amount), recombined as `lo + (hi << 16)`. This is the real on-chain split
+/// (`PENDING_BALANCE_LO_BIT_LENGTH = 16`), distinct from `SplitCiphertext`'s generic 32/32.
+pub const TOKEN2022_LO_BITS: u32 = 16;
+
+/// A real Token-2022 confidential-transfer amount as it appears on-chain: the low and high halves,
+/// each a **grouped** ElGamal ciphertext under `[source, destination, auditor]` handles. The
+/// auditor reads its own handle. `N` is the number of handles (3 for a transfer).
+#[derive(Clone)]
+pub struct Token2022TransferAmount<const N: usize> {
+    pub lo: GroupedElGamalCiphertext<N>,
+    pub hi: GroupedElGamalCiphertext<N>,
+    /// Handle index of the auditor (auditor is the last of source/destination/auditor).
+    pub auditor_index: usize,
+}
+
+impl<const N: usize> Token2022TransferAmount<N> {
+    /// Decrypt with the auditor key: extract the auditor's ciphertext from each grouped half,
+    /// decrypt, and recombine `lo + (hi << 16)`. `None` if a half is undecryptable or malformed.
+    pub fn decrypt(&self, auditor: &ElGamalKeypair) -> Option<u64> {
+        let lo_ct = self.lo.to_elgamal_ciphertext(self.auditor_index).ok()?;
+        let hi_ct = self.hi.to_elgamal_ciphertext(self.auditor_index).ok()?;
+        let lo = lo_ct.decrypt_u32(auditor.secret())?;
+        let hi = hi_ct.decrypt_u32(auditor.secret())?;
+        if lo >= (1u64 << TOKEN2022_LO_BITS) {
+            return None;
+        }
+        Some(lo + (hi << TOKEN2022_LO_BITS))
+    }
+}
+
+/// Encrypt an amount in the real Token-2022 transfer format (grouped under `[source, dest, auditor]`,
+/// lo 16 bits / hi 32 bits). Mirrors how a confidential transfer instruction encodes the amount.
+pub fn encrypt_token2022_transfer(
+    source: &ElGamalPubkey,
+    destination: &ElGamalPubkey,
+    auditor: &ElGamalPubkey,
+    amount: u64,
+) -> Token2022TransferAmount<3> {
+    let lo = amount & ((1u64 << TOKEN2022_LO_BITS) - 1);
+    let hi = amount >> TOKEN2022_LO_BITS;
+    Token2022TransferAmount {
+        lo: GroupedElGamal::<3>::encrypt([source, destination, auditor], lo),
+        hi: GroupedElGamal::<3>::encrypt([source, destination, auditor], hi),
+        auditor_index: 2,
+    }
+}
+
+/// How a confidential amount is carried: a single ciphertext (amount < 2^32), a generic lo/hi
+/// split, or the real Token-2022 confidential-transfer grouped format. Boxed so the enum stays
+/// pointer-sized when stored in bulk (e.g. many txns).
 #[derive(Clone)]
 pub enum ConfidentialAmount {
     Small(Box<ElGamalCiphertext>),
     Split(Box<SplitCiphertext>),
+    Token2022(Box<Token2022TransferAmount<3>>),
 }
 
 /// A confidential transaction as the auditor sees it: the amount is encrypted under the auditor's
@@ -104,6 +155,7 @@ pub fn decrypt_amount(auditor: &ElGamalKeypair, amount: &ConfidentialAmount) -> 
     match amount {
         ConfidentialAmount::Small(ct) => ct.decrypt_u32(auditor.secret()),
         ConfidentialAmount::Split(split) => decrypt_split(auditor, split),
+        ConfidentialAmount::Token2022(t) => t.decrypt(auditor),
     }
 }
 
@@ -303,5 +355,27 @@ mod tests {
         let j = serde_json::to_string(&r).unwrap();
         assert!(j.contains("\"amount\":999"));
         assert!(j.contains("\"direction\":\"outflow\""), "rename_all lowercase: {j}");
+    }
+
+    /// The real Token-2022 confidential-transfer format: amount grouped under [source, dest, auditor]
+    /// with a 16/32 lo/hi split. The auditor recovers the exact amount from its own handle.
+    #[test]
+    fn auditor_decrypts_real_token2022_transfer_format() {
+        let source = ElGamalKeypair::new_rand();
+        let dest = ElGamalKeypair::new_rand();
+        let auditor = ElGamalKeypair::new_rand();
+        // A 40-bit amount (> 2^32), within Token-2022's ~2^48 transfer range.
+        let amount = (1u64 << 40) + 12_345;
+        let enc = encrypt_token2022_transfer(source.pubkey(), dest.pubkey(), auditor.pubkey(), amount);
+
+        assert_eq!(enc.decrypt(&auditor), Some(amount), "auditor recovers exact amount");
+
+        // Same, via the ConfidentialAmount audit-trail path.
+        let ca = ConfidentialAmount::Token2022(Box::new(enc.clone()));
+        assert_eq!(decrypt_amount(&auditor, &ca), Some(amount));
+
+        // A non-auditor key cannot read the grouped amount.
+        let stranger = ElGamalKeypair::new_rand();
+        assert_ne!(enc.decrypt(&stranger), Some(amount));
     }
 }
