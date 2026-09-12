@@ -119,10 +119,9 @@ Shipped, configured, unused. Not because it is immature, but because no setting 
 correct: fill it and every holder's position is permanently readable by one party; leave it null and
 no holder can demonstrate anything to anyone.
 
-That empty slot is the layer Aperture is. A downstream consumer showing what it looks like filled
-properly — scoped by recipient, by granularity, and by **schedule** — is
-[`psyto/mora`](https://github.com/psyto/mora), which reproduces the mint readings above with
-`scripts/onchain-check.sh`.
+That empty slot is the layer Aperture is. The readings above are reproducible from any machine with
+no key and no account — `getAccountInfo` on each mint, `jsonParsed`, read
+`extensions[].confidentialTransferMint.auditorElgamalPubkey`.
 
 ---
 
