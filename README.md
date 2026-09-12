@@ -54,7 +54,7 @@ consumer for non-repudiation.
 ## Build & run
 
 ```
-cargo test                                             # engine (crates/aperture-core) — 12
+cargo test                                             # engine (crates/aperture-core) — 20
 cd programs/aperture-receipts && cargo build-sbf       # -> target/deploy/aperture_receipts.so
 cd harness/receipts-tests && cargo test                # 4   (needs the .so above)
 cd harness/flow-tests     && cargo test                # 1   (needs the .so above)
@@ -86,24 +86,46 @@ standalone generation API; no need to drop below `solana-zk-sdk`.
   `Irreversible`; `authorize_new_disclosure()` gates only future disclosures) and demonstrated in
   `harness/flow-tests` (post-revoke, the delivered package still verifies). Prefer range/predicate +
   just-in-time proofs.
-- **On-chain path is availability-gated, not compute-gated.** Proof *verification* runs in a native
-  program, not BPF — so compute budget is a non-issue by design, and proof-vs-tx-size is handled by
-  context state accounts. The real dependency is binary: the ZK ElGamal Proof Program is feature-
-  gated *off* on mainnet-beta since the June-2025 forged-proof incident (patched, reactivation not
-  yet confirmed live). Until then: off-chain verification works today, and `aperture-receipts` anchors
-  commitments with **no ZK program**, so the non-repudiation trail is live independent of that gate.
+- **On-chain proof verification is live again.** Proof *verification* runs in a native program, not
+  BPF — so compute budget is a non-issue by design, and proof-vs-tx-size is handled by context state
+  accounts. The dependency was binary: the ZK ElGamal Proof Program was feature-gated *off* on
+  mainnet-beta after the June-2025 forged-proof incident. **That gate activated at the start of epoch
+  982, early June 2026**, and Token-2022 was redeployed with the confidential instructions about two
+  weeks later; it is enabled on mainnet and devnet today. Independently of it, `aperture-receipts`
+  anchors commitments with **no ZK program**, so the non-repudiation trail never depended on the gate.
 
 ## Status
 
 | Dimension | Status |
 |-----------|--------|
 | Disclosure primitives, off-chain generate + verify | GREEN — `harness/spike` |
-| On-chain proof verification | Plumbing GREEN, availability RED (ZK program disabled on mainnet) |
+| On-chain proof verification | GREEN — plumbing proven, and the ZK ElGamal Proof Program was re-enabled on mainnet at epoch 982 (June 2026) |
 | On-chain anchoring / non-repudiation | GREEN, live — `programs/aperture-receipts` |
 | Revocation semantics | Encoded (revocation ≠ clawback) |
 
+## Why the layer above matters — observed, not asserted
+
+The argument for Aperture has always been that a **single global auditor key — one key that decrypts
+everything, forever — is not a disclosure model a regulated holder can use.** As of 2026-09 that is
+no longer an argument. It is visible on mainnet, on the asset class where it matters most.
+
+Every tokenized-equity mint checked — `NVDAx`, `TSLAx`, `SPYx`, `AAPLx` (Backed Finance xStocks) — is
+Token-2022, has the `confidentialTransferMint` extension **enabled**, and has
+`auditorElgamalPubkey` set to **null**. NVDAx also carries `autoApproveNewAccounts: false`,
+`permanentDelegate`, `pausableConfig` and `defaultAccountState` — a heavily compliance-configured
+institutional mint. The substrate is transactable again, and usage is close to zero.
+
+Shipped, configured, unused. Not because it is immature, but because no setting of that one key is
+correct: fill it and every holder's position is permanently readable by one party; leave it null and
+no holder can demonstrate anything to anyone.
+
+That empty slot is the layer Aperture is. A downstream consumer showing what it looks like filled
+properly — scoped by recipient, by granularity, and by **schedule** — is
+[`psyto/mora`](https://github.com/psyto/mora), which reproduces the mint readings above with
+`scripts/onchain-check.sh`.
+
 ---
 
-*Private — `psyto/aperture`. Positioning, market analysis, and GTM are tracked privately, outside
+*`psyto/aperture` — Apache-2.0. Positioning, market analysis, and GTM are tracked privately, outside
 this engine repo. Aperture is the reusable disclosure engine; downstream products consume it as a
-licensed dependency.*
+versioned external dependency.*
